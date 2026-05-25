@@ -6,7 +6,7 @@ import urllib.request
 from pathlib import Path
 
 from telegram.error import BadRequest
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -61,6 +61,31 @@ LOGGER = logging.getLogger(__name__)
 
 OPTION_LABELS = ["A", "B", "C"]
 BANK_PAGE_SIZE = 8
+
+BOT_COMMANDS: list[tuple[str, str]] = [
+    ("start", "Iniciar y mostrar el menu"),
+    ("menu", "Mostrar el menu principal"),
+    ("practica", "Practica infinita de preguntas"),
+    ("examen", "Hacer un examen tipo test"),
+    ("estadisticas", "Ver tus estadisticas"),
+    ("banco", "Explorar el banco de preguntas"),
+    ("ayuda", "Ver la ayuda y los comandos"),
+]
+
+BOT_DESCRIPTION = (
+    "Prepara el examen teorico del carnet de conducir (permiso B).\n\n"
+    "Comandos disponibles:\n"
+    "/practica - Practica infinita de preguntas\n"
+    "/examen - Examen tipo test (30 preguntas)\n"
+    "/estadisticas - Tus aciertos, fallos y precision\n"
+    "/banco - Explorar el banco de preguntas\n"
+    "/menu - Menu principal\n"
+    "/ayuda - Ayuda"
+)
+
+BOT_SHORT_DESCRIPTION = (
+    "Test del permiso B: /practica, /examen, /estadisticas y /banco de preguntas."
+)
 
 
 def get_conn(context: ContextTypes.DEFAULT_TYPE):
@@ -172,6 +197,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         context,
         "Bienvenido a BotCarnetConducir.\nPuedes practicar, hacer examen y revisar tus estadisticas.",
     )
+
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    target = update.effective_message
+    if target is None:
+        return
+    await target.reply_text(BOT_DESCRIPTION, reply_markup=main_menu_keyboard())
 
 
 async def start_practice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -463,6 +495,14 @@ async def menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     return None
 
 
+async def post_init(application: Application) -> None:
+    await application.bot.set_my_commands(
+        [BotCommand(command, description) for command, description in BOT_COMMANDS]
+    )
+    await application.bot.set_my_description(BOT_DESCRIPTION)
+    await application.bot.set_my_short_description(BOT_SHORT_DESCRIPTION)
+
+
 def build_application(settings: Settings) -> Application:
     conn = connect(settings.db_path)
     init_db(conn)
@@ -472,12 +512,19 @@ def build_application(settings: Settings) -> Application:
     LOGGER.info("Preguntas importadas en este arranque: %s", imported)
     LOGGER.info("Total preguntas importadas: %s", count_imported_questions(conn))
 
-    application = Application.builder().token(settings.bot_token).build()
+    application = (
+        Application.builder().token(settings.bot_token).post_init(post_init).build()
+    )
     application.bot_data["conn"] = conn
     application.bot_data["settings"] = settings
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("menu", start))
+    application.add_handler(CommandHandler("practica", start_practice))
+    application.add_handler(CommandHandler("examen", start_exam))
+    application.add_handler(CommandHandler("estadisticas", show_stats))
+    application.add_handler(CommandHandler("banco", show_bank))
+    application.add_handler(CommandHandler("ayuda", help_command))
     application.add_handler(CallbackQueryHandler(stats_router, pattern=r"^stats:"))
     application.add_handler(CallbackQueryHandler(practice_answer, pattern=r"^practice:\d+:[012]$"))
     application.add_handler(CallbackQueryHandler(exam_answer, pattern=r"^exam:\d+:[012]$"))
