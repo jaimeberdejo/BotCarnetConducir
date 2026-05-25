@@ -5,12 +5,12 @@
 See: .planning/PROJECT.md (updated 2026-05-25)
 
 **Core value:** Practicar preguntas reales o equivalentes del carnet B desde Telegram de forma rápida, continua y con feedback útil sobre errores.
-**Current focus:** Phase 1 - Data Foundation
+**Current focus:** Phase 1 - MVP One Shot
 
 ## Current Position
 
-Phase: 1 of 6 (Data Foundation)
-Plan: 0 of 3 in current phase
+Phase: 1 of 1 (MVP One Shot)
+Plan: 0 of 6 in current phase
 Status: Ready to plan
 Last activity: 2026-05-25 — Project initialized and roadmap created
 
@@ -64,5 +64,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-05-25 00:00
-Stopped at: Project initialization completed; Phase 1 is ready for discuss/plan
+Stopped at: Project initialization completed; single macro phase is ready for discuss/plan
 Resume file: None

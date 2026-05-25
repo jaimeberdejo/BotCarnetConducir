@@ -78,31 +78,31 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PLAT-01 | Phase 2 | Pending |
-| PLAT-02 | Phase 2 | Pending |
-| PLAT-03 | Phase 3 | Pending |
+| PLAT-01 | Phase 1 | Pending |
+| PLAT-02 | Phase 1 | Pending |
+| PLAT-03 | Phase 1 | Pending |
 | BANK-01 | Phase 1 | Pending |
 | BANK-02 | Phase 1 | Pending |
 | BANK-03 | Phase 1 | Pending |
-| BANK-04 | Phase 4 | Pending |
-| PRAC-01 | Phase 2 | Pending |
-| PRAC-02 | Phase 2 | Pending |
-| PRAC-03 | Phase 2 | Pending |
-| PRAC-04 | Phase 2 | Pending |
-| PRAC-05 | Phase 2 | Pending |
-| EXAM-01 | Phase 3 | Pending |
-| EXAM-02 | Phase 3 | Pending |
-| EXAM-03 | Phase 3 | Pending |
-| EXAM-04 | Phase 3 | Pending |
-| EXAM-05 | Phase 3 | Pending |
-| CONT-01 | Phase 4 | Pending |
-| CONT-02 | Phase 4 | Pending |
-| CONT-03 | Phase 4 | Pending |
-| STAT-01 | Phase 5 | Pending |
-| STAT-02 | Phase 5 | Pending |
-| STAT-03 | Phase 5 | Pending |
-| STAT-04 | Phase 5 | Pending |
-| STAT-05 | Phase 5 | Pending |
+| BANK-04 | Phase 1 | Pending |
+| PRAC-01 | Phase 1 | Pending |
+| PRAC-02 | Phase 1 | Pending |
+| PRAC-03 | Phase 1 | Pending |
+| PRAC-04 | Phase 1 | Pending |
+| PRAC-05 | Phase 1 | Pending |
+| EXAM-01 | Phase 1 | Pending |
+| EXAM-02 | Phase 1 | Pending |
+| EXAM-03 | Phase 1 | Pending |
+| EXAM-04 | Phase 1 | Pending |
+| EXAM-05 | Phase 1 | Pending |
+| CONT-01 | Phase 1 | Pending |
+| CONT-02 | Phase 1 | Pending |
+| CONT-03 | Phase 1 | Pending |
+| STAT-01 | Phase 1 | Pending |
+| STAT-02 | Phase 1 | Pending |
+| STAT-03 | Phase 1 | Pending |
+| STAT-04 | Phase 1 | Pending |
+| STAT-05 | Phase 1 | Pending |
 
 **Coverage:**
 - v1 requirements: 25 total
