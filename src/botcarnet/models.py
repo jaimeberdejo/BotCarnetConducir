@@ -13,6 +13,7 @@ class Question:
     correct_index: int
     explanation: str
     image_name: str | None
+    telegram_file_id: str | None
     source_type: str
     status: str
 

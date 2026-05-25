@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from urllib.parse import quote
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -27,9 +28,91 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
         [
             [InlineKeyboardButton("Practica infinita", callback_data="menu:practice")],
             [InlineKeyboardButton("Hacer examen", callback_data="menu:exam")],
-            [InlineKeyboardButton("Ver banco", callback_data="menu:bank")],
-            [InlineKeyboardButton("Anadir pregunta", callback_data="menu:submit")],
             [InlineKeyboardButton("Estadisticas", callback_data="menu:stats")],
+        ]
+    )
+
+
+def bank_list_keyboard(items: list[Question], page: int, total_pages: int) -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    current_row: list[InlineKeyboardButton] = []
+    for index, question in enumerate(items, start=1):
+        current_row.append(
+            InlineKeyboardButton(
+                str(index),
+                callback_data=f"bank:view:{question.id}:{page}",
+            )
+        )
+        if len(current_row) == 4:
+            rows.append(current_row)
+            current_row = []
+    if current_row:
+        rows.append(current_row)
+    nav_row_top: list[InlineKeyboardButton] = []
+    if page > 0:
+        nav_row_top.append(InlineKeyboardButton("<< 1", callback_data="bank:list:0"))
+    if page >= 10:
+        nav_row_top.append(
+            InlineKeyboardButton(f"< 10", callback_data=f"bank:list:{max(page - 10, 0)}")
+        )
+    if page > 0:
+        nav_row_top.append(
+            InlineKeyboardButton("Anterior", callback_data=f"bank:list:{page - 1}")
+        )
+    if nav_row_top:
+        rows.append(nav_row_top)
+
+    if page > 0:
+        pass
+    nav_row_bottom: list[InlineKeyboardButton] = [
+        InlineKeyboardButton(f"{page + 1}/{max(total_pages, 1)}", callback_data="bank:noop")
+    ]
+    if page + 1 < total_pages:
+        nav_row_bottom.append(
+            InlineKeyboardButton("Siguiente", callback_data=f"bank:list:{page + 1}")
+        )
+    if page + 10 < total_pages:
+        nav_row_bottom.append(
+            InlineKeyboardButton(
+                "10 >", callback_data=f"bank:list:{min(page + 10, total_pages - 1)}"
+            )
+        )
+    if page + 1 < total_pages:
+        nav_row_bottom.append(
+            InlineKeyboardButton(
+                f"{total_pages} >>", callback_data=f"bank:list:{total_pages - 1}"
+            )
+        )
+    rows.append(nav_row_bottom)
+    rows.append([InlineKeyboardButton("Menu", callback_data="menu:home")])
+    return InlineKeyboardMarkup(rows)
+
+
+def bank_detail_keyboard(page: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("Volver a la lista", callback_data=f"bank:list:{page}")],
+            [InlineKeyboardButton("Menu", callback_data="menu:home")],
+        ]
+    )
+
+
+def stats_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("Reiniciar estadisticas", callback_data="stats:reset:confirm")],
+            [InlineKeyboardButton("Menu", callback_data="menu:home")],
+        ]
+    )
+
+
+def stats_reset_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("Si, reiniciar", callback_data="stats:reset:apply"),
+                InlineKeyboardButton("Cancelar", callback_data="stats:reset:cancel"),
+            ]
         ]
     )
 
@@ -75,3 +158,16 @@ def question_image_path(images_dir: Path, question: Question) -> Path | None:
         return None
     path = images_dir / question.image_name
     return path if path.exists() else None
+
+
+def question_image_url(base_url: str, question: Question) -> str | None:
+    if not question.image_name:
+        return None
+    return f"{base_url.rstrip('/')}/{quote(question.image_name)}"
+
+
+def shorten_prompt(text: str, limit: int = 90) -> str:
+    normalized = " ".join(text.split())
+    if len(normalized) <= limit:
+        return normalized
+    return normalized[: limit - 3].rstrip() + "..."

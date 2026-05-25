@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 import re
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
-from .db import count_imported_questions, upsert_question
+from .db import count_imported_questions, set_metadata, upsert_question
 from .models import QuestionDraft
 
 
@@ -81,5 +82,10 @@ def import_questions(
         )
         upsert_question(conn, draft)
     conn.commit()
+    set_metadata(
+        conn,
+        "dataset_synced_at",
+        datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+    )
     after = count_imported_questions(conn)
     return after - before

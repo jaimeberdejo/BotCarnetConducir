@@ -9,6 +9,10 @@ DATASET_URL = (
     "https://raw.githubusercontent.com/donmerendolo/"
     "anki-carnet-conducir/master/data/data_B.json"
 )
+IMAGE_BASE_URL = (
+    "https://raw.githubusercontent.com/jaimeberdejo/"
+    "botcarnet-imagenes/main/Imagenes/"
+)
 
 
 def load_dotenv(env_path: Path) -> None:
@@ -29,6 +33,7 @@ class Settings:
     images_dir: Path
     dataset_json: Path | None
     dataset_url: str
+    image_base_url: str
     exam_question_count: int = 30
     exam_fail_threshold: int = 3
 
@@ -56,4 +61,5 @@ def get_settings() -> Settings:
         images_dir=images_dir,
         dataset_json=dataset_json,
         dataset_url=os.environ.get("BOT_DATASET_URL", DATASET_URL),
+        image_base_url=os.environ.get("BOT_IMAGE_BASE_URL", IMAGE_BASE_URL),
     )

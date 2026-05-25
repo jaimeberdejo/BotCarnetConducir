@@ -1,0 +1,14 @@
+.git
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.DS_Store
+.env
+botcarnet.db
+botcarnet.db-shm
+botcarnet.db-wal
+tests
+.planning

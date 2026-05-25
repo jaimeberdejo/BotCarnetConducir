@@ -30,6 +30,7 @@ def init_db(conn: sqlite3.Connection) -> None:
             correct_index INTEGER NOT NULL,
             explanation TEXT NOT NULL DEFAULT '',
             image_name TEXT,
+            telegram_file_id TEXT,
             is_active INTEGER NOT NULL DEFAULT 1,
             status TEXT NOT NULL DEFAULT 'approved',
             submitted_by INTEGER,
@@ -53,6 +54,7 @@ def init_db(conn: sqlite3.Connection) -> None:
             current_index INTEGER NOT NULL,
             mistakes INTEGER NOT NULL,
             correct_count INTEGER NOT NULL,
+            review_data TEXT NOT NULL DEFAULT '[]',
             started_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -64,9 +66,58 @@ def init_db(conn: sqlite3.Connection) -> None:
             FOREIGN KEY(practice_question_id) REFERENCES questions(id),
             FOREIGN KEY(last_bank_question_id) REFERENCES questions(id)
         );
+
+        CREATE TABLE IF NOT EXISTS exam_results (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            total_questions INTEGER NOT NULL,
+            correct_count INTEGER NOT NULL,
+            mistakes INTEGER NOT NULL,
+            passed INTEGER NOT NULL,
+            finished_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS metadata (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
         """
     )
+    columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(exam_sessions)").fetchall()
+    }
+    if "review_data" not in columns:
+        conn.execute(
+            "ALTER TABLE exam_sessions ADD COLUMN review_data TEXT NOT NULL DEFAULT '[]'"
+        )
+    question_columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(questions)").fetchall()
+    }
+    if "telegram_file_id" not in question_columns:
+        conn.execute("ALTER TABLE questions ADD COLUMN telegram_file_id TEXT")
     conn.commit()
+
+
+def set_metadata(conn: sqlite3.Connection, key: str, value: str) -> None:
+    conn.execute(
+        """
+        INSERT INTO metadata (key, value, updated_at)
+        VALUES (?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(key) DO UPDATE SET
+            value = excluded.value,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (key, value),
+    )
+    conn.commit()
+
+
+def get_metadata(conn: sqlite3.Connection, key: str) -> str | None:
+    row = conn.execute("SELECT value FROM metadata WHERE key = ?", (key,)).fetchone()
+    if row is None:
+        return None
+    return str(row["value"])
 
 
 def count_imported_questions(conn: sqlite3.Connection) -> int:
@@ -144,6 +195,7 @@ def row_to_question(row: sqlite3.Row) -> Question:
         correct_index=int(row["correct_index"]),
         explanation=row["explanation"] or "",
         image_name=row["image_name"],
+        telegram_file_id=row["telegram_file_id"],
         source_type=row["source_type"],
         status=row["status"],
     )
@@ -166,6 +218,33 @@ def get_random_imported_question(conn: sqlite3.Connection) -> Question | None:
     return row_to_question(row) if row else None
 
 
+def count_active_imported_questions(conn: sqlite3.Connection) -> int:
+    row = conn.execute(
+        """
+        SELECT COUNT(*) AS total
+        FROM questions
+        WHERE source_type = 'imported' AND is_active = 1
+        """
+    ).fetchone()
+    return int(row["total"])
+
+
+def list_imported_questions(
+    conn: sqlite3.Connection, offset: int, limit: int
+) -> list[Question]:
+    rows = conn.execute(
+        """
+        SELECT *
+        FROM questions
+        WHERE source_type = 'imported' AND is_active = 1
+        ORDER BY id
+        LIMIT ? OFFSET ?
+        """,
+        (limit, offset),
+    ).fetchall()
+    return [row_to_question(row) for row in rows]
+
+
 def set_practice_question(conn: sqlite3.Connection, user_id: int, question_id: int) -> None:
     conn.execute(
         """
@@ -176,6 +255,16 @@ def set_practice_question(conn: sqlite3.Connection, user_id: int, question_id: i
             updated_at = CURRENT_TIMESTAMP
         """,
         (user_id, question_id),
+    )
+    conn.commit()
+
+
+def set_question_telegram_file_id(
+    conn: sqlite3.Connection, question_id: int, telegram_file_id: str
+) -> None:
+    conn.execute(
+        "UPDATE questions SET telegram_file_id = ? WHERE id = ?",
+        (telegram_file_id, question_id),
     )
     conn.commit()
 
@@ -212,13 +301,16 @@ def create_exam_session(
 ) -> None:
     conn.execute(
         """
-        INSERT INTO exam_sessions (user_id, question_ids, current_index, mistakes, correct_count)
-        VALUES (?, ?, 0, 0, 0)
+        INSERT INTO exam_sessions (
+            user_id, question_ids, current_index, mistakes, correct_count, review_data
+        )
+        VALUES (?, ?, 0, 0, 0, '[]')
         ON CONFLICT(user_id) DO UPDATE SET
             question_ids = excluded.question_ids,
             current_index = 0,
             mistakes = 0,
             correct_count = 0,
+            review_data = '[]',
             started_at = CURRENT_TIMESTAMP
         """,
         (user_id, json.dumps(question_ids)),
@@ -270,14 +362,23 @@ def answer_exam_question(
     mistakes = int(session["mistakes"]) + (0 if is_correct else 1)
     correct_count = int(session["correct_count"]) + (1 if is_correct else 0)
     next_index = current_index + 1
+    review_data = json.loads(session["review_data"] or "[]")
+    review_data.append(
+        {
+            "question_id": question.id,
+            "selected_index": selected_index,
+            "correct_index": question.correct_index,
+            "is_correct": is_correct,
+        }
+    )
 
     conn.execute(
         """
         UPDATE exam_sessions
-        SET current_index = ?, mistakes = ?, correct_count = ?
+        SET current_index = ?, mistakes = ?, correct_count = ?, review_data = ?
         WHERE user_id = ?
         """,
-        (next_index, mistakes, correct_count, user_id),
+        (next_index, mistakes, correct_count, json.dumps(review_data), user_id),
     )
     conn.commit()
     log_answer(conn, user_id, question.id, "exam", is_correct)
@@ -307,6 +408,52 @@ def get_exam_question(conn: sqlite3.Connection, user_id: int) -> tuple[Question 
     return question, current_index, len(question_ids), int(session["mistakes"])
 
 
+def get_exam_review(conn: sqlite3.Connection, user_id: int) -> list[dict[str, object]]:
+    session = load_exam_session(conn, user_id)
+    if not session:
+        return []
+    review_rows = json.loads(session["review_data"] or "[]")
+    enriched: list[dict[str, object]] = []
+    for row in review_rows:
+        question = get_question_by_id(conn, int(row["question_id"]))
+        if question is None:
+            continue
+        enriched.append(
+            {
+                "question": question,
+                "selected_index": int(row["selected_index"]),
+                "correct_index": int(row["correct_index"]),
+                "is_correct": bool(row["is_correct"]),
+            }
+        )
+    return enriched
+
+
+def record_exam_result(
+    conn: sqlite3.Connection,
+    user_id: int,
+    total_questions: int,
+    correct_count: int,
+    mistakes: int,
+    passed: bool,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO exam_results (
+            user_id, total_questions, correct_count, mistakes, passed
+        ) VALUES (?, ?, ?, ?, ?)
+        """,
+        (user_id, total_questions, correct_count, mistakes, int(passed)),
+    )
+    conn.commit()
+
+
+def reset_user_stats(conn: sqlite3.Connection, user_id: int) -> None:
+    conn.execute("DELETE FROM answer_events WHERE user_id = ?", (user_id,))
+    conn.execute("DELETE FROM exam_results WHERE user_id = ?", (user_id,))
+    conn.commit()
+
+
 def get_user_stats(conn: sqlite3.Connection, user_id: int) -> dict[str, object]:
     totals = conn.execute(
         """
@@ -334,10 +481,23 @@ def get_user_stats(conn: sqlite3.Connection, user_id: int) -> dict[str, object]:
         (user_id,),
     ).fetchall()
 
+    exam_results = conn.execute(
+        """
+        SELECT
+            SUM(CASE WHEN passed = 1 THEN 1 ELSE 0 END) AS exams_passed,
+            SUM(CASE WHEN passed = 0 THEN 1 ELSE 0 END) AS exams_failed
+        FROM exam_results
+        WHERE user_id = ?
+        """,
+        (user_id,),
+    ).fetchone()
+
     return {
         "practice_correct": int(totals["practice_correct"] or 0),
         "practice_incorrect": int(totals["practice_incorrect"] or 0),
         "exam_correct": int(totals["exam_correct"] or 0),
         "exam_incorrect": int(totals["exam_incorrect"] or 0),
+        "exams_passed": int(exam_results["exams_passed"] or 0),
+        "exams_failed": int(exam_results["exams_failed"] or 0),
         "recent_errors": [(row["prompt"], int(row["misses"])) for row in recent_errors],
     }
