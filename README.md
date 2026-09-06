@@ -18,7 +18,6 @@ Este repositorio es **autocontenido**: incluye el código del bot, el dataset de
 - [Cómo funcionan las imágenes](#cómo-funcionan-las-imágenes)
 - [Estructura del proyecto](#estructura-del-proyecto)
 - [Tests](#tests)
-- [Despliegue 24/7](#despliegue-247)
 - [Problemas frecuentes](#problemas-frecuentes)
 - [Licencia y atribución](#licencia-y-atribución)
 
@@ -174,7 +173,7 @@ Los arranques siguientes son instantáneos: la base ya está poblada y la import
 
 Abre Telegram, busca tu bot por el username que elegiste (`@mi_test_carnetb_bot`), pulsa **Iniciar** y envía `/practica`.
 
-Para pararlo, `Ctrl+C` en la terminal. El bot solo responde mientras el proceso esté corriendo: si apagas el ordenador, deja de funcionar. Para tenerlo activo siempre, ve a [Despliegue 24/7](#despliegue-247).
+Para pararlo, `Ctrl+C` en la terminal. El bot solo responde mientras el proceso esté corriendo: si cierras la terminal o apagas el ordenador, deja de responder. Para tenerlo activo de forma permanente hay que ejecutarlo en una máquina que no se apague; el `Dockerfile` incluido sirve para desplegarlo en cualquier plataforma que corra contenedores.
 
 ---
 
@@ -205,7 +204,7 @@ El bot resuelve la foto de cada pregunta en tres niveles, en este orden:
 
 Si los tres fallan, la pregunta se manda como texto: nunca se rompe el flujo por una imagen.
 
-Esto significa que **puedes desplegar sin las imágenes** para que la imagen del contenedor pese poco (es justo lo que hacen `Dockerfile` y `.railwayignore`): se sirven desde GitHub la primera vez y a partir de ahí van por `file_id`.
+Esto significa que **puedes desplegar sin las imágenes** para que el contenedor pese poco (es justo lo que hace el `Dockerfile`, que no las copia): se sirven desde GitHub la primera vez y a partir de ahí van por `file_id`.
 
 Si haces fork del repo, acuérdate de apuntar `BOT_IMAGE_BASE_URL` a **tu** fork, y de que el repo sea público — `raw.githubusercontent.com` no sirve ficheros de repositorios privados.
 
@@ -243,35 +242,6 @@ Cubren la normalización del dataset y la resolución de nombres de imagen del i
 
 ---
 
-## Despliegue 24/7
-
-Para que el bot siga respondiendo con tu ordenador apagado, tiene que correr en un servicio externo. El repo incluye `Dockerfile`, así que sirve cualquier plataforma que despliegue contenedores.
-
-### Railway (probado)
-
-1. Sube tu fork a GitHub.
-2. En Railway, crea un proyecto nuevo desde el repositorio. Detectará el `Dockerfile` automáticamente.
-3. Añade las variables de entorno del servicio:
-
-   ```
-   BOT_TOKEN=<tu token>
-   BOT_DB_PATH=/app/data/botcarnet.db
-   BOT_DATASET_JSON=/app/data_B.json
-   ```
-
-4. Crea un **volumen persistente** y móntalo en `/app/data`. Sin esto, cada redeploy borra las estadísticas de los usuarios.
-5. Despliega.
-
-Notas:
-
-- No definas `BOT_IMAGES_DIR`: la imagen del contenedor no incluye `Imagenes/` a propósito (ver `.railwayignore`), y el bot tirará de la URL pública.
-- `data_B.json` sí va dentro del contenedor, así que el arranque no depende de la red.
-- SQLite en un volumen aguanta de sobra este caso de uso. Si algún día quieres backups sencillos o varias instancias, tocará migrar a Postgres.
-
-Documentación: [Railway Build & Deploy](https://docs.railway.com/build-deploy) · [Railway Volumes](https://docs.railway.com/volumes)
-
----
-
 ## Problemas frecuentes
 
 **`RuntimeError: BOT_TOKEN no configurado.`**
@@ -281,7 +251,7 @@ No hay `.env` en el directorio desde el que lanzas el comando, o la variable est
 El token está mal copiado (suele faltar un trozo, o sobra un espacio). Recupéralo con `/mybots` en @BotFather.
 
 **`Conflict: terminated by other getUpdates request`**
-Tienes dos instancias del mismo bot corriendo a la vez — por ejemplo, en local y en Railway. Telegram solo permite un consumidor de updates por token. Para una de las dos.
+Tienes dos instancias del mismo bot corriendo a la vez — por ejemplo, una en local y otra en un servidor. Telegram solo permite un consumidor de updates por token. Para una de las dos.
 
 **El bot no responde y no hay error en consola**
 Comprueba que estás escribiendo al bot correcto (el username exacto que creaste) y que pulsaste **Iniciar**.
