@@ -14,3 +14,6 @@ botcarnet.db-wal
 *.egg-info/
 build/
 dist/
+
+# Notas de trabajo locales (no se publican)
+AGENTS.md
