@@ -11,7 +11,7 @@ DATASET_URL = (
 )
 IMAGE_BASE_URL = (
     "https://raw.githubusercontent.com/jaimeberdejo/"
-    "botcarnet-imagenes/main/Imagenes/"
+    "BotCarnetConducir/master/Imagenes/"
 )
 
 

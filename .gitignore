@@ -9,3 +9,8 @@ botcarnet.db
 botcarnet.db-shm
 botcarnet.db-wal
 .env
+
+# Build artifacts
+*.egg-info/
+build/
+dist/
